@@ -9,4 +9,6 @@ export interface PageConfig {
 
   chunks: string[];
 
+  entries?: { [key: string]: string; };
+
 }

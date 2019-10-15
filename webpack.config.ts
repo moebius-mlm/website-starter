@@ -5,6 +5,7 @@ import {
   HotModuleReplacementPlugin,
   Plugin as WebpackPlugin,
   RuleSetUseItem,
+  Entry,
 
 } from 'webpack';
 
@@ -13,12 +14,19 @@ import path from 'path';
 /**
  * Webpack Plugins
  */
+
+import HtmlWebpackPlugin, {
+  MinifyOptions as HtmlMinifyOptions
+
+} from 'html-webpack-plugin';
+
 import autoprefixerPlugin, { Options as AutoprefixerOptions } from 'autoprefixer';
-import { CleanWebpackPlugin } from 'clean-webpack-plugin';
 import CopyWebpackPlugin from 'copy-webpack-plugin';
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin';
-import HtmlWebpackPlugin from 'html-webpack-plugin';
 import glob from 'glob-promise';
+import MiniCssExtractPlugin from 'mini-css-extract-plugin';
+import { CleanWebpackPlugin } from 'clean-webpack-plugin';
+
 import { PageConfig } from './src/common/page-config';
 
 
@@ -67,9 +75,9 @@ export default async function getConfig() {
 
     output: {
       path: destinationPath,
-      filename: '[name].[hash].js',
+      filename: '[name].[chunkhash].js',
     },
-    devtool: (isProduction ? 'source-map' : 'inline-source-map'),
+    devtool: (isProduction ? 'nosources-source-map' : 'inline-source-map'),
     module: {
       rules: [],
     },
@@ -82,7 +90,7 @@ export default async function getConfig() {
       ],
       alias: {},
     },
-    plugins: <WebpackPlugin[]> filterTruthy([
+    plugins: <WebpackPlugin[]>filterTruthy([
 
       new CleanWebpackPlugin(),
 
@@ -94,6 +102,8 @@ export default async function getConfig() {
       new ForkTsCheckerWebpackPlugin({
         tsconfig: tsConfigPath,
       }),
+
+      isProduction && new MiniCssExtractPlugin(),
 
     ]),
 
@@ -203,10 +213,17 @@ export default async function getConfig() {
   webpackConfig.module!.rules.push({
     test: /\.scss$/,
     use: [
-      {
-        loader: 'style-loader',
-        options: {},
-      },
+      (isProduction ? (
+        {
+          loader: MiniCssExtractPlugin.loader,
+          options: {},
+        }
+      ) : (
+        {
+          loader: 'style-loader',
+          options: {},
+        }
+      )),
       {
         loader: 'css-loader',
         options: {},
@@ -286,15 +303,35 @@ export default async function getConfig() {
 
       const pageConfig: PageConfig = importedModule.default;
 
+      // Chunks that will be added to the HTML document
+      const chunks: string[] = [
+        ...(pageConfig.chunks || []),
+      ];
+
+      // Adding entries to both entries and chunks
+      if (pageConfig.entries) {
+        Object.entries(pageConfig.entries).forEach(([entryName, path]) => {
+          (webpackConfig.entry as Entry)[entryName] = path;
+          chunks.push(entryName);
+        });
+      }
+
+      const minifyOptions: HtmlMinifyOptions = {
+        collapseWhitespace: true,
+        removeComments: true,
+        removeRedundantAttributes: true,
+        useShortDoctype: true,
+      };
+
       webpackConfig.plugins!.push(
         new HtmlWebpackPlugin({
           template: pageConfig.templatePath,
           filename: pageConfig.filename,
-          minify: (isProduction ? {} : false),
+          minify: (isProduction ? minifyOptions : false),
+          chunks,
           templateParameters: {
             title: pageConfig.title,
           },
-          chunks: pageConfig.chunks,
         }),
       );
 

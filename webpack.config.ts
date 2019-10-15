@@ -75,7 +75,7 @@ export default async function getConfig() {
 
     output: {
       path: destinationPath,
-      filename: '[name].[chunkhash].js',
+      filename: (isProduction ? '[name].[chunkhash].js' : '[name].js'),
     },
     devtool: (isProduction ? 'nosources-source-map' : 'inline-source-map'),
     module: {

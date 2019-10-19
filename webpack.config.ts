@@ -103,7 +103,10 @@ export default async function getConfig() {
         tsconfig: tsConfigPath,
       }),
 
-      isProduction && new MiniCssExtractPlugin(),
+      isProduction && new MiniCssExtractPlugin({
+        filename: '[name].[hash].css',
+        chunkFilename: '[id].[hash].css',
+      }),
 
     ]),
 
